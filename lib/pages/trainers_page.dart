@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../providers/workout_provider.dart';
+import '../models/workout.dart';
 
 class TrainersPage extends StatelessWidget {
   const TrainersPage({super.key});
@@ -28,6 +31,8 @@ class TrainersPage extends StatelessWidget {
             rating: 5.0,
             description:
                 "Омелян спеціалізується на наборі м’язової маси. Використовує сучасні методики тренувань та харчування для максимального результату.",
+            phone: "+380501234567",
+            telegram: "@omelyan_fit",
           ),
           const SizedBox(height: 20),
           TrainerCard(
@@ -39,6 +44,8 @@ class TrainersPage extends StatelessWidget {
             rating: 4.7,
             description:
                 "Карпо — експерт у кросфіті. Проводить інтенсивні тренування, що поєднують силові та кардіо вправи для всебічного розвитку.",
+            phone: "+380671234567",
+            telegram: "@karpo_crossfit",
           ),
           const SizedBox(height: 20),
           TrainerCard(
@@ -50,6 +57,8 @@ class TrainersPage extends StatelessWidget {
             rating: 4.9,
             description:
                 "Сніжана спеціалізується на пілатесі та розвитку гнучкості. Тренування допомагають зміцнити м’язи та покращити поставу.",
+            phone: "+380631234567",
+            telegram: "@snizhana_pilates",
           ),
           const SizedBox(height: 20),
           TrainerCard(
@@ -61,6 +70,8 @@ class TrainersPage extends StatelessWidget {
             rating: 4.5,
             description:
                 "Пилип проводить пілатес-тренування для початківців та просунутих. Його заняття поєднують вправи на баланс та силу.",
+            phone: "+380681234567",
+            telegram: "@pylip_pilates",
           ),
           const SizedBox(height: 20),
           TrainerCard(
@@ -72,6 +83,8 @@ class TrainersPage extends StatelessWidget {
             rating: 4.8,
             description:
                 "Микола допомагає покращити фізичну форму та гнучкість. Його заняття включають персональні та групові тренування.",
+            phone: "+380691234567",
+            telegram: "@mykola_fit",
           ),
         ],
       ),
@@ -87,6 +100,8 @@ class TrainerCard extends StatelessWidget {
   final int clientsCount;
   final double rating;
   final String description;
+  final String phone;
+  final String telegram;
 
   const TrainerCard({
     super.key,
@@ -97,6 +112,8 @@ class TrainerCard extends StatelessWidget {
     required this.clientsCount,
     required this.rating,
     required this.description,
+    required this.phone,
+    required this.telegram,
   });
 
   void _openDetails(BuildContext context) {
@@ -111,6 +128,67 @@ class TrainerCard extends StatelessWidget {
           clientsCount: clientsCount,
           rating: rating,
           description: description,
+          phone: phone,
+          telegram: telegram,
+        ),
+      ),
+    );
+  }
+
+  static Future<void> bookTrainer(BuildContext context, String trainerName) async {
+    DateTime? selectedDate = await showDatePicker(
+      context: context,
+      initialDate: DateTime.now(),
+      firstDate: DateTime.now(),
+      lastDate: DateTime.now().add(const Duration(days: 365)),
+    );
+    if (selectedDate == null) return;
+
+    int? selectedHour = await showDialog<int>(
+      context: context,
+      builder: (context) {
+        final workoutProvider = context.read<WorkoutProvider>();
+        final now = DateTime.now();
+
+        return SimpleDialog(
+          title: const Text("Виберіть час"),
+          children: List.generate(5, (index) {
+            final hour = 10 + index * 2;
+            final isPastTime = selectedDate.year == now.year &&
+                selectedDate.month == now.month &&
+                selectedDate.day == now.day &&
+                hour <= now.hour;
+            final isTaken = workoutProvider.isSlotTaken(trainerName, selectedDate, hour) || isPastTime;
+
+            return SimpleDialogOption(
+              onPressed: isTaken ? null : () => Navigator.pop(context, hour),
+              child: Text(
+                "$hour:00${isTaken ? " (зайнято)" : ""}",
+                style: TextStyle(color: isTaken ? Colors.grey : Colors.white),
+              ),
+            );
+          }),
+        );
+      },
+    );
+
+    if (selectedHour == null) return;
+
+    final workoutDateTime = DateTime(
+      selectedDate.year,
+      selectedDate.month,
+      selectedDate.day,
+      selectedHour,
+    );
+
+    context.read<WorkoutProvider>().addWorkout(
+      Workout(trainer: trainerName, dateTime: workoutDateTime),
+    );
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          "Записано на ${selectedDate.day}.${selectedDate.month}.${selectedDate.year} о $selectedHour:00",
         ),
       ),
     );
@@ -188,34 +266,19 @@ class TrainerCard extends StatelessWidget {
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFFED6E00),
                             foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 6,
-                            ),
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                           ),
-                          onPressed: () => _openDetails(context),
-                          child: const Text(
-                            "Записатися",
-                            style: TextStyle(fontSize: 12),
-                          ),
+                          onPressed: () => bookTrainer(context, name),
+                          child: const Text("Записатися", style: TextStyle(fontSize: 12)),
                         ),
                         const SizedBox(width: 10),
                         OutlinedButton(
                           style: OutlinedButton.styleFrom(
                             side: const BorderSide(color: Color(0xFFFF7700)),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 6,
-                            ),
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                           ),
                           onPressed: () => _openDetails(context),
-                          child: const Text(
-                            "Деталі",
-                            style: TextStyle(
-                              color: Color(0xFFFF7700),
-                              fontSize: 12,
-                            ),
-                          ),
+                          child: const Text("Деталі", style: TextStyle(color: Color(0xFFFF7700), fontSize: 12)),
                         ),
                       ],
                     ),
@@ -238,6 +301,8 @@ class TrainerDetailsPage extends StatelessWidget {
   final int clientsCount;
   final double rating;
   final String description;
+  final String phone;
+  final String telegram;
 
   const TrainerDetailsPage({
     super.key,
@@ -248,6 +313,8 @@ class TrainerDetailsPage extends StatelessWidget {
     required this.clientsCount,
     required this.rating,
     required this.description,
+    required this.phone,
+    required this.telegram,
   });
 
   Future<void> _bookTrainer(BuildContext context) async {
@@ -256,40 +323,58 @@ class TrainerDetailsPage extends StatelessWidget {
       initialDate: DateTime.now(),
       firstDate: DateTime.now(),
       lastDate: DateTime.now().add(const Duration(days: 365)),
-      builder: (context, child) => Theme(
-        data: Theme.of(context).copyWith(
-          colorScheme: const ColorScheme.light(
-            primary: Color(0xFFED6E00),
-            onPrimary: Colors.white,
-            onSurface: Colors.black,
-          ),
-        ),
-        child: child!,
-      ),
     );
 
-    if (selectedDate != null) {
-      int? selectedHour = await showDialog<int>(
-        context: context,
-        builder: (context) => SimpleDialog(
+    if (selectedDate == null) return;
+
+    int? selectedHour = await showDialog<int>(
+      context: context,
+      builder: (context) {
+        final workoutProvider = context.read<WorkoutProvider>();
+        final now = DateTime.now();
+
+        return SimpleDialog(
           title: const Text("Виберіть час"),
           children: List.generate(5, (index) {
-            int hour = 10 + index * 2; // 10, 12, 14, 16, 18
+            final hour = 10 + index * 2;
+            final isPastTime = selectedDate.year == now.year &&
+                selectedDate.month == now.month &&
+                selectedDate.day == now.day &&
+                hour <= now.hour;
+            final isTaken = workoutProvider.isSlotTaken(name, selectedDate, hour) || isPastTime;
+
             return SimpleDialogOption(
-              onPressed: () => Navigator.pop(context, hour),
-              child: Text("$hour:00"),
+              onPressed: isTaken ? null : () => Navigator.pop(context, hour),
+              child: Text(
+                "$hour:00${isTaken ? " (зайнято)" : ""}",
+                style: TextStyle(color: isTaken ? Colors.grey : Colors.white),
+              ),
             );
           }),
-        ),
-      );
+        );
+      },
+    );
 
-      if (selectedHour != null) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(
-              "Записано на ${selectedDate.day}.${selectedDate.month}.${selectedDate.year} о $selectedHour:00"),
-        ));
-      }
-    }
+    if (selectedHour == null) return;
+
+    final workoutDateTime = DateTime(
+      selectedDate.year,
+      selectedDate.month,
+      selectedDate.day,
+      selectedHour,
+    );
+
+    context.read<WorkoutProvider>().addWorkout(
+      Workout(trainer: name, dateTime: workoutDateTime),
+    );
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          "Записано на ${selectedDate.day}.${selectedDate.month}.${selectedDate.year} о $selectedHour:00",
+        ),
+      ),
+    );
   }
 
   @override
@@ -304,43 +389,31 @@ class TrainerDetailsPage extends StatelessWidget {
         padding: const EdgeInsets.all(20),
         child: Column(
           children: [
-            Image.asset(imagePath, width: 200, height: 200, fit: BoxFit.cover),
+            Image.asset(imagePath, width: 200, height: 200),
             const SizedBox(height: 20),
             Row(
               children: [
                 const Icon(Icons.star, color: Colors.yellow),
                 const SizedBox(width: 4),
-                Text(
-                  rating.toStringAsFixed(1),
-                  style: const TextStyle(color: Colors.white),
-                ),
+                Text(rating.toStringAsFixed(1), style: const TextStyle(color: Colors.white)),
               ],
             ),
             const SizedBox(height: 10),
-            Text(
-              type,
-              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
-            ),
+            Text(type, style: const TextStyle(color: Colors.white)),
             const SizedBox(height: 10),
-            Text(
-              "$experienceYears років досвіду",
-              style: const TextStyle(color: Colors.white70),
-            ),
-            Text(
-              "$clientsCount клієнтів",
-              style: const TextStyle(color: Colors.white70),
-            ),
+            Text("$experienceYears років досвіду", style: const TextStyle(color: Colors.white70)),
+            Text("$clientsCount клієнтів", style: const TextStyle(color: Colors.white70)),
             const SizedBox(height: 20),
-            Text(
-              description,
-              style: const TextStyle(color: Colors.white70),
-            ),
-            const SizedBox(height: 30),
+            Text(description, style: const TextStyle(color: Colors.white70)),
+            const SizedBox(height: 20),
+            Text("Телефон: $phone", style: const TextStyle(color: Colors.white70, fontWeight: FontWeight.w500)),
+            Text("Telegram: $telegram", style: const TextStyle(color: Colors.white70, fontWeight: FontWeight.w500)),
+            const SizedBox(height: 20),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFFED6E00),
                 foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
               ),
               onPressed: () => _bookTrainer(context),
               child: const Text("Записатися"),

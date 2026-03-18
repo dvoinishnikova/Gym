@@ -35,6 +35,7 @@ class MyHomePage extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
+      automaticallyImplyLeading: false,
       backgroundColor: const Color(0xFF202020),
       elevation: 0,
       centerTitle: true,
