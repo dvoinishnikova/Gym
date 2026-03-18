@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'survey_complete_page.dart';
-
+import 'package:go_router/go_router.dart';
 class SurveyPage extends StatefulWidget {
   const SurveyPage({super.key});
 
@@ -26,22 +26,11 @@ class _SurveyPageState extends State<SurveyPage> {
   }
 
   void _submitSurvey() {
-    final chosenGoals =
-        selectedGoals.entries.where((e) => e.value).map((e) => e.key).toList();
+    final chosenGoals = selectedGoals.entries.where((e) => e.value).map((e) => e.key).toList();
+    if (chosenGoals.isEmpty) return;
 
-    if (chosenGoals.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Оберіть хоча б одну мету")),
-      );
-      return;
-    }
 
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => SurveyCompletePage(userGoals: chosenGoals),
-      ),
-    );
+    context.go('/survey_complete', extra: chosenGoals);
   }
 
   @override

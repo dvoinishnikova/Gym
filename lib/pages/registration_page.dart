@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-import 'survey_page.dart';
-import 'login_page.dart';
+import 'package:go_router/go_router.dart';
 
 class RegistrationPage extends StatefulWidget {
   const RegistrationPage({super.key});
@@ -17,12 +16,8 @@ class _RegistrationPageState extends State<RegistrationPage> {
 
   void _proceedToSurvey() {
     if (_formKey.currentState!.validate()) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => const SurveyPage(),
-        ),
-      );
+
+      context.go('/survey');
     }
   }
 
@@ -40,10 +35,7 @@ class _RegistrationPageState extends State<RegistrationPage> {
       labelStyle: const TextStyle(color: Colors.white70),
       filled: true,
       fillColor: const Color(0xFF323232),
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide.none,
-      ),
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
         borderSide: const BorderSide(color: Color(0xFFED6E00), width: 1),
@@ -67,32 +59,22 @@ class _RegistrationPageState extends State<RegistrationPage> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    const Text(
-                      "Реєстрація",
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 32,
-                        fontWeight: FontWeight.bold,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
+                    const Text("Реєстрація",
+                        style: TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.bold),
+                        textAlign: TextAlign.center),
                     const SizedBox(height: 40),
                     TextFormField(
                       controller: _nameController,
                       style: const TextStyle(color: Colors.white),
                       decoration: _buildInputDecoration("Ім’я"),
-                      validator: (value) =>
-                          value == null || value.isEmpty ? "Введіть ім’я" : null,
+                      validator: (value) => value == null || value.isEmpty ? "Введіть ім’я" : null,
                     ),
                     const SizedBox(height: 20),
                     TextFormField(
                       controller: _emailController,
                       style: const TextStyle(color: Colors.white),
-                      keyboardType: TextInputType.emailAddress,
                       decoration: _buildInputDecoration("Email"),
-                      validator: (value) => value == null || !value.contains('@')
-                          ? "Введіть коректний Email"
-                          : null,
+                      validator: (value) => value == null || !value.contains('@') ? "Введіть коректний Email" : null,
                     ),
                     const SizedBox(height: 20),
                     TextFormField(
@@ -100,9 +82,7 @@ class _RegistrationPageState extends State<RegistrationPage> {
                       style: const TextStyle(color: Colors.white),
                       obscureText: true,
                       decoration: _buildInputDecoration("Пароль"),
-                      validator: (value) => value == null || value.length < 6
-                          ? "Пароль має бути щонайменше 6 символів"
-                          : null,
+                      validator: (value) => value == null || value.length < 6 ? "Щонайменше 6 символів" : null,
                     ),
                     const SizedBox(height: 40),
                     ElevatedButton(
@@ -110,40 +90,20 @@ class _RegistrationPageState extends State<RegistrationPage> {
                         backgroundColor: const Color(0xFFED6E00),
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       ),
                       onPressed: _proceedToSurvey,
-                      child: const Text(
-                        "Продовжити",
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                      ),
+                      child: const Text("Продовжити", style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
                     ),
                     const SizedBox(height: 24),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Text(
-                          "Вже є акаунт? ",
-                          style: TextStyle(color: Colors.white70),
-                        ),
+                        const Text("Вже є акаунт? ", style: TextStyle(color: Colors.white70)),
                         GestureDetector(
-                          onTap: () {
-                            Navigator.pushReplacement(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => const LoginPage(),
-                              ),
-                            );
-                          },
-                          child: const Text(
-                            "Увійти",
-                            style: TextStyle(
-                              color: Color(0xFFED6E00),
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
+                          onTap: () => context.go('/login'),
+                          child: const Text("Увійти",
+                              style: TextStyle(color: Color(0xFFED6E00), fontWeight: FontWeight.bold)),
                         ),
                       ],
                     ),

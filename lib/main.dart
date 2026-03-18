@@ -7,7 +7,9 @@ import 'pages/home_tab.dart';
 import 'pages/trainers_page.dart';
 import 'pages/settings_page.dart';
 import 'pages/registration_page.dart';
-import 'app_routes.dart';
+import 'pages/login_page.dart';
+import 'pages/survey_page.dart';
+import 'pages/survey_complete_page.dart';
 
 void main() {
   runApp(
@@ -21,25 +23,33 @@ void main() {
 final GoRouter router = GoRouter(
   initialLocation: '/registration',
   routes: [
+
     GoRoute(
       path: '/registration',
       builder: (context, state) => const RegistrationPage(),
     ),
+    GoRoute(
+      path: '/login',
+      builder: (context, state) => const LoginPage(),
+    ),
+    GoRoute(
+      path: '/survey',
+      builder: (context, state) => const SurveyPage(),
+    ),
+    GoRoute(
+      path: '/survey_complete',
+      builder: (context, state) {
+        final goals = state.extra as List<String>? ?? [];
+        return SurveyCompletePage(userGoals: goals);
+      },
+    ),
+
     ShellRoute(
       builder: (context, state, child) => MyHomePage(child: child),
       routes: [
-        GoRoute(
-          path: AppRoute.home.path,
-          builder: (context, state) => const HomeTab(),
-        ),
-        GoRoute(
-          path: AppRoute.profile.path,
-          builder: (context, state) => const TrainersPage(),
-        ),
-        GoRoute(
-          path: AppRoute.settings.path,
-          builder: (context, state) => const SettingsPage(),
-        ),
+        GoRoute(path: '/home', builder: (context, state) => const HomeTab()),
+        GoRoute(path: '/profile', builder: (context, state) => const TrainersPage()),
+        GoRoute(path: '/settings', builder: (context, state) => const SettingsPage()),
       ],
     ),
   ],
