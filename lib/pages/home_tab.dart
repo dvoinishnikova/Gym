@@ -1,196 +1,237 @@
 import 'package:flutter/material.dart';
-import '../providers/workout_provider.dart';
-import 'package:provider/provider.dart';
+import '../services/api_service.dart';
 
-class HomeTab extends StatelessWidget {
+class HomeTab extends StatefulWidget {
   const HomeTab({super.key});
 
   @override
+  State<HomeTab> createState() => _HomeTabState();
+}
+
+class _HomeTabState extends State<HomeTab> {
+  List<dynamic> workouts = [];
+  Map<String, dynamic>? gym;
+  String? userName;
+
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadData();
+  }
+
+  Future<void> _loadData() async {
+    setState(() => _isLoading = true);
+
+    try {
+      final workoutsData = await ApiService.getWorkouts();
+      final gymData = await ApiService.getGymLoad();
+      final user = await ApiService.getMe();
+
+      final now = DateTime.now();
+
+setState(() {
+  workouts = (workoutsData ?? []).where((w) {
+    final date = DateTime.parse(w["date_time"]);
+    return date.isAfter(now);
+  }).toList();
+
+
+  workouts.sort((a, b) =>
+      DateTime.parse(a["date_time"])
+          .compareTo(DateTime.parse(b["date_time"])));
+
+  gym = gymData;
+  userName = user?['name'];
+  _isLoading = false;
+});
+    } catch (e) {
+      print("ERROR: $e");
+      setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _deleteWorkout(int id) async {
+    try {
+      await ApiService.deleteWorkout(id);
+
+
+      await _loadData();
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Запис скасовано ❌")),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Помилка: $e")),
+      );
+    }
+  }
+
+  Future<void> _confirmDelete(int id) async {
+    final confirm = await showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Відмінити запис?"),
+        content: const Text("Ви впевнені, що хочете скасувати тренування?"),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text("Ні"),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text("Так"),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      await _deleteWorkout(id);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final int peopleCount = 60;
+    final int peopleCount = gym?["people_now"] ?? 0;
+    final String approx = gym?["approx"] ?? "Завантаження...";
+    final String status = gym?["status"] ?? "";
+
     final int maxPeople = 100;
-    final double fillRatio = (peopleCount / maxPeople).clamp(0.0, 1.0);
+    final double fillRatio =
+        (peopleCount / maxPeople).clamp(0.0, 1.0);
 
     Color progressColor;
-    String loadText;
 
     if (fillRatio < 0.33) {
       progressColor = Colors.green;
-      loadText = "Низька навантаженість";
     } else if (fillRatio < 0.66) {
       progressColor = Colors.yellow;
-      loadText = "Середня навантаженість";
     } else {
       progressColor = Colors.red;
-      loadText = "Висока навантаженість";
     }
 
     return Scaffold(
       backgroundColor: const Color(0xFF202020),
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                "Вітаємо, Ім’я!",
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 30,
-                  fontWeight: FontWeight.w400,
-                  fontFamily: "Montserrat",
-                ),
-              ),
-              const SizedBox(height: 20),
-              Text.rich(
-                TextSpan(
+          padding: const EdgeInsets.all(20),
+          child: _isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const TextSpan(
-                      text: "Зараз у залі ",
-                      style: TextStyle(color: Colors.white, fontSize: 24),
-                    ),
-                    TextSpan(
-                      text: "$peopleCount",
+                    Text(
+                      userName != null
+                          ? "Вітаємо, $userName 👋"
+                          : "Вітаємо 👋",
                       style: const TextStyle(
                         color: Colors.white,
-                        fontSize: 24,
-                        fontWeight: FontWeight.w600,
+                        fontSize: 28,
+                        fontWeight: FontWeight.bold,
                       ),
                     ),
-                    const TextSpan(
-                      text: " людей",
-                      style: TextStyle(color: Colors.white, fontSize: 24),
+
+                    const SizedBox(height: 20),
+
+                    Text(
+                      "Зараз у залі $approx",
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 22,
+                      ),
                     ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 20),
-              LayoutBuilder(
-                builder: (context, constraints) {
-                  final fullWidth = constraints.maxWidth;
-                  final progressWidth = (peopleCount / maxPeople * fullWidth)
-                      .clamp(0.0, fullWidth);
 
-                  return Stack(
-                    children: [
-                      Container(
-                        width: fullWidth,
-                        height: 28,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF9E9E9E),
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                      ),
-                      Container(
-                        width: progressWidth,
-                        height: 28,
-                        decoration: BoxDecoration(
-                          color: progressColor,
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                      ),
-                    ],
-                  );
-                },
-              ),
-              const SizedBox(height: 10),
-              Text(
-                loadText,
-                style: TextStyle(
-                  color: progressColor,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              const SizedBox(height: 40),
-              Consumer<WorkoutProvider>(
-                builder: (context, workoutProvider, child) {
-                  final workouts = workoutProvider.workouts;
+                    const SizedBox(height: 10),
 
-                  if (workouts.isEmpty) {
-                    return Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Colors.grey[800],
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: const Text(
-                        "У вас ще немає запланованих тренувань",
-                        style: TextStyle(color: Colors.white),
-                      ),
-                    );
-                  }
+                    LayoutBuilder(
+                      builder: (context, constraints) {
+                        final fullWidth = constraints.maxWidth;
+                        final progressWidth =
+                            fullWidth * fillRatio;
 
-                  return ListView.builder(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    itemCount: workouts.length,
-                    itemBuilder: (context, index) {
-                      final workout = workouts[index];
-
-                      return Container(
-                        margin: const EdgeInsets.only(bottom: 15),
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFAF3D00),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                        return Stack(
                           children: [
-                            const Text(
-                              "Тренування",
-                              style: TextStyle(color: Colors.white),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              "Тренер: ${workout.trainer}",
-                              style: const TextStyle(color: Colors.white),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              "${workout.dateTime.day}.${workout.dateTime.month}.${workout.dateTime.year} ${workout.dateTime.hour}:00",
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w600,
+                            Container(
+                              width: fullWidth,
+                              height: 25,
+                              decoration: BoxDecoration(
+                                color: Colors.grey[700],
+                                borderRadius: BorderRadius.circular(12),
                               ),
                             ),
-                            const SizedBox(height: 10),
-                            Align(
-                              alignment: Alignment.centerRight,
-                              child: GestureDetector(
-                                onTap: () {
-                                  workoutProvider.removeWorkout(workout);
-
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text(
-                                        "Тренування успішно відмінено",
-                                      ),
-                                      duration: const Duration(seconds: 2),
-                                      backgroundColor: Colors.redAccent,
-                                    ),
-                                  );
-                                },
-                                child: const Text(
-                                  "Відмінити",
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    decoration: TextDecoration.underline,
-                                  ),
-                                ),
+                            Container(
+                              width: progressWidth,
+                              height: 25,
+                              decoration: BoxDecoration(
+                                color: progressColor,
+                                borderRadius: BorderRadius.circular(12),
                               ),
                             ),
                           ],
-                        ),
-                      );
-                    },
-                  );
-                },
-              ),
-            ],
-          ),
+                        );
+                      },
+                    ),
+
+                    const SizedBox(height: 8),
+
+                    Text(
+                      status,
+                      style: TextStyle(color: progressColor),
+                    ),
+
+                    const SizedBox(height: 30),
+
+                    const Text(
+                      "Мої тренування",
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 20,
+                      ),
+                    ),
+
+                    const SizedBox(height: 10),
+
+                    Expanded(
+                      child: workouts.isEmpty
+                          ? const Center(
+                              child: Text(
+                                "Немає записів",
+                                style: TextStyle(color: Colors.white70),
+                              ),
+                            )
+                          : ListView.builder(
+                              itemCount: workouts.length,
+                              itemBuilder: (context, index) {
+                                final w = workouts[index];
+
+                                return Card(
+                                  color: Colors.grey[800],
+                                  margin:
+                                      const EdgeInsets.only(bottom: 10),
+                                  child: ListTile(
+                                    title: Text(
+                                      w["trainer"]["name"],
+                                      style: const TextStyle(color: Colors.white),
+                                    ),
+                                    subtitle: Text(
+                                      w["date_time"],
+                                      style: const TextStyle(color: Colors.white70),
+                                    ),
+                                    trailing: IconButton(
+                                      icon: const Icon(Icons.delete, color: Colors.red),
+                                      onPressed: () =>
+                                          _confirmDelete(w["id"]),
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                    ),
+                  ],
+                ),
         ),
       ),
     );

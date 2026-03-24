@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import '../services/api_service.dart';
 
 class RegistrationPage extends StatefulWidget {
   const RegistrationPage({super.key});
@@ -10,15 +11,56 @@ class RegistrationPage extends StatefulWidget {
 
 class _RegistrationPageState extends State<RegistrationPage> {
   final _formKey = GlobalKey<FormState>();
-  final TextEditingController _nameController = TextEditingController();
-  final TextEditingController _emailController = TextEditingController();
-  final TextEditingController _passwordController = TextEditingController();
 
-  void _proceedToSurvey() {
-    if (_formKey.currentState!.validate()) {
+  final _nameController = TextEditingController();
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+  final _confirmController = TextEditingController();
 
+  bool _isLoading = false;
+
+  Future<void> _handleRegister() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() => _isLoading = true);
+
+    final error = await ApiService.register(
+      _nameController.text.trim(),
+      _emailController.text.trim(),
+      _passwordController.text,
+    );
+
+    if (!mounted) return;
+    setState(() => _isLoading = false);
+
+    if (error == null) {
       context.go('/survey');
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(error),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
     }
+  }
+
+  InputDecoration _inputStyle(String label, IconData icon) {
+    return InputDecoration(
+      labelText: label,
+      prefixIcon: Icon(icon, color: Colors.white70),
+      labelStyle: const TextStyle(color: Colors.white70),
+      filled: true,
+      fillColor: const Color(0xFF323232),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide.none,
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: Color(0xFFED6E00)),
+      ),
+    );
   }
 
   @override
@@ -26,90 +68,120 @@ class _RegistrationPageState extends State<RegistrationPage> {
     _nameController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
+    _confirmController.dispose();
     super.dispose();
-  }
-
-  InputDecoration _buildInputDecoration(String label) {
-    return InputDecoration(
-      labelText: label,
-      labelStyle: const TextStyle(color: Colors.white70),
-      filled: true,
-      fillColor: const Color(0xFF323232),
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: Color(0xFFED6E00), width: 1),
-      ),
-    );
   }
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () => FocusScope.of(context).unfocus(),
-      child: Scaffold(
-        backgroundColor: const Color(0xFF202020),
-        body: SafeArea(
-          child: Center(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    const Text("Реєстрація",
-                        style: TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.bold),
-                        textAlign: TextAlign.center),
-                    const SizedBox(height: 40),
-                    TextFormField(
-                      controller: _nameController,
-                      style: const TextStyle(color: Colors.white),
-                      decoration: _buildInputDecoration("Ім’я"),
-                      validator: (value) => value == null || value.isEmpty ? "Введіть ім’я" : null,
-                    ),
-                    const SizedBox(height: 20),
-                    TextFormField(
-                      controller: _emailController,
-                      style: const TextStyle(color: Colors.white),
-                      decoration: _buildInputDecoration("Email"),
-                      validator: (value) => value == null || !value.contains('@') ? "Введіть коректний Email" : null,
-                    ),
-                    const SizedBox(height: 20),
-                    TextFormField(
-                      controller: _passwordController,
-                      style: const TextStyle(color: Colors.white),
-                      obscureText: true,
-                      decoration: _buildInputDecoration("Пароль"),
-                      validator: (value) => value == null || value.length < 6 ? "Щонайменше 6 символів" : null,
-                    ),
-                    const SizedBox(height: 40),
-                    ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFED6E00),
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      ),
-                      onPressed: _proceedToSurvey,
-                      child: const Text("Продовжити", style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
-                    ),
-                    const SizedBox(height: 24),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Text("Вже є акаунт? ", style: TextStyle(color: Colors.white70)),
-                        GestureDetector(
-                          onTap: () => context.go('/login'),
-                          child: const Text("Увійти",
-                              style: TextStyle(color: Color(0xFFED6E00), fontWeight: FontWeight.bold)),
-                        ),
-                      ],
-                    ),
-                  ],
+    return Scaffold(
+      backgroundColor: const Color(0xFF202020),
+      body: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              children: [
+                const Text(
+                  "Реєстрація",
+                  style: TextStyle(
+                    fontSize: 32,
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
-              ),
+
+                const SizedBox(height: 30),
+
+                TextFormField(
+                  controller: _nameController,
+                  style: const TextStyle(color: Colors.white),
+                  decoration: _inputStyle("Ім’я", Icons.person),
+                  validator: (v) =>
+                      v!.isEmpty ? "Введіть ім’я" : null,
+                ),
+
+                const SizedBox(height: 16),
+
+                TextFormField(
+                  controller: _emailController,
+                  style: const TextStyle(color: Colors.white),
+                  decoration: _inputStyle("Email", Icons.email),
+                  validator: (v) =>
+                      v != null && v.contains('@')
+                          ? null
+                          : "Некоректний email",
+                ),
+
+                const SizedBox(height: 16),
+
+                TextFormField(
+                  controller: _passwordController,
+                  obscureText: true,
+                  style: const TextStyle(color: Colors.white),
+                  decoration: _inputStyle("Пароль", Icons.lock),
+                  validator: (v) =>
+                      v!.length < 6 ? "Мін 6 символів" : null,
+                ),
+
+                const SizedBox(height: 16),
+
+                TextFormField(
+                  controller: _confirmController,
+                  obscureText: true,
+                  style: const TextStyle(color: Colors.white),
+                  decoration: _inputStyle("Повторіть пароль", Icons.lock),
+                  validator: (v) =>
+                      v != _passwordController.text
+                          ? "Паролі не співпадають"
+                          : null,
+                ),
+
+                const SizedBox(height: 30),
+
+                SizedBox(
+                  width: double.infinity,
+                  height: 55,
+                  child: ElevatedButton(
+                    onPressed:
+                        _isLoading ? null : _handleRegister,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFED6E00),
+                      foregroundColor: Colors.white,
+                    ),
+                    child: _isLoading
+                        ? const CircularProgressIndicator(
+                            color: Colors.white)
+                        : const Text("Зареєструватися"),
+                  ),
+                ),
+
+                const SizedBox(height: 20),
+
+               Row(
+  mainAxisAlignment: MainAxisAlignment.center,
+  children: [
+    const Text(
+      "Вже є акаунт? ",
+      style: TextStyle(color: Colors.white70),
+    ),
+    TextButton(
+      onPressed: () => context.go('/login'),
+      style: TextButton.styleFrom(
+        foregroundColor: const Color(0xFFED6E00),
+      ),
+      child: const Text(
+        "Увійти",
+        style: TextStyle(
+          color: Color(0xFFED6E00),
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+    ),
+  ],
+),
+              ],
             ),
           ),
         ),

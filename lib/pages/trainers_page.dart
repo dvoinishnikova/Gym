@@ -1,206 +1,169 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import '../providers/workout_provider.dart';
-import '../models/workout.dart';
+import '../services/api_service.dart';
+import '../models/trainer.dart';
 
-class TrainersPage extends StatelessWidget {
+final List<int> availableHours = [8, 10, 12, 14, 16, 18, 20];
+
+class TrainersPage extends StatefulWidget {
   const TrainersPage({super.key});
+
+  @override
+  State<TrainersPage> createState() => _TrainersPageState();
+}
+
+class _TrainersPageState extends State<TrainersPage> {
+  List<Trainer> trainers = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadTrainers();
+  }
+
+  Future<void> _loadTrainers() async {
+    try {
+      final data = await ApiService.getTrainers();
+      setState(() {
+        trainers = data.map<Trainer>((e) => Trainer.fromJson(e)).toList();
+        _isLoading = false;
+      });
+    } catch (e) {
+      print("ERROR: $e");
+      setState(() => _isLoading = false);
+    }
+  }
+
+  Future<List<int>> _getFreeHours(int trainerId, DateTime date) async {
+    final busyTimes = await ApiService.getTrainerSchedule(trainerId);
+    final now = DateTime.now();
+
+    return availableHours.where((hour) {
+      final dateTime = DateTime(date.year, date.month, date.day, hour);
+
+      if (dateTime.isBefore(now)) return false;
+
+      final formatted = dateTime
+          .toIso8601String()
+          .substring(0, 19)
+          .replaceAll('T', ' ');
+      return !busyTimes.contains(formatted);
+    }).toList();
+  }
+
+  Future<void> _bookTrainer(BuildContext context, Trainer trainer) async {
+    final date = await showDatePicker(
+      context: context,
+      initialDate: DateTime.now(),
+      firstDate: DateTime.now(),
+      lastDate: DateTime(2100),
+    );
+    if (date == null) return;
+
+    final freeHours = await _getFreeHours(trainer.id, date);
+    if (freeHours.isEmpty) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("Немає вільного часу 😢")));
+      return;
+    }
+
+    final selectedHour = await showDialog<int>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text("Вибери годину"),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: freeHours.map((hour) {
+              return ListTile(
+                title: Text("$hour:00"),
+                onTap: () => Navigator.pop(context, hour),
+              );
+            }).toList(),
+          ),
+        );
+      },
+    );
+    if (selectedHour == null) return;
+
+    final dateTime = DateTime(date.year, date.month, date.day, selectedHour);
+    final formatted = dateTime
+        .toIso8601String()
+        .substring(0, 19)
+        .replaceAll('T', ' ');
+
+    final error = await ApiService.createWorkout(trainer.id, formatted);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(error == null ? "Запис успішний ✅" : error)),
+    );
+  }
+
+  void _openDetails(BuildContext context, Trainer trainer) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) =>
+            TrainerDetailsPage(trainer: trainer, getFreeHours: _getFreeHours),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFF202020),
-      body: ListView(
-        padding: const EdgeInsets.all(20),
-        children: [
-          const Text(
-            "Наші тренери",
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 30,
-              fontWeight: FontWeight.w400,
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : ListView(
+              padding: const EdgeInsets.all(20),
+              children: [
+                const Text(
+                  "Наші тренери",
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 30,
+                    fontWeight: FontWeight.w400,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                ...trainers.map(
+                  (trainer) => Column(
+                    children: [
+                      TrainerCard(
+                        trainer: trainer,
+                        bookTrainer: _bookTrainer,
+                        openDetails: _openDetails,
+                      ),
+                      const SizedBox(height: 20),
+                    ],
+                  ),
+                ),
+              ],
             ),
-          ),
-          const SizedBox(height: 20),
-          TrainerCard(
-            name: "Омелян",
-            type: "Набір м’язової маси",
-            imagePath: "assets/trainer1.gif",
-            experienceYears: 8,
-            clientsCount: 40,
-            rating: 5.0,
-            description:
-                "Омелян спеціалізується на наборі м’язової маси. Використовує сучасні методики тренувань та харчування для максимального результату.",
-            phone: "+380501234567",
-            telegram: "@omelyan_fit",
-          ),
-          const SizedBox(height: 20),
-          TrainerCard(
-            name: "Карпо",
-            type: "Кросфіт",
-            imagePath: "assets/trainer2.gif",
-            experienceYears: 5,
-            clientsCount: 25,
-            rating: 4.7,
-            description:
-                "Карпо — експерт у кросфіті. Проводить інтенсивні тренування, що поєднують силові та кардіо вправи для всебічного розвитку.",
-            phone: "+380671234567",
-            telegram: "@karpo_crossfit",
-          ),
-          const SizedBox(height: 20),
-          TrainerCard(
-            name: "Сніжана",
-            type: "Пілатес",
-            imagePath: "assets/trainer3.gif",
-            experienceYears: 6,
-            clientsCount: 30,
-            rating: 4.9,
-            description:
-                "Сніжана спеціалізується на пілатесі та розвитку гнучкості. Тренування допомагають зміцнити м’язи та покращити поставу.",
-            phone: "+380631234567",
-            telegram: "@snizhana_pilates",
-          ),
-          const SizedBox(height: 20),
-          TrainerCard(
-            name: "Пилип",
-            type: "Пілатес",
-            imagePath: "assets/trainer4.gif",
-            experienceYears: 4,
-            clientsCount: 18,
-            rating: 4.5,
-            description:
-                "Пилип проводить пілатес-тренування для початківців та просунутих. Його заняття поєднують вправи на баланс та силу.",
-            phone: "+380681234567",
-            telegram: "@pylip_pilates",
-          ),
-          const SizedBox(height: 20),
-          TrainerCard(
-            name: "Микола",
-            type: "Пілатес",
-            imagePath: "assets/trainer5.gif",
-            experienceYears: 7,
-            clientsCount: 35,
-            rating: 4.8,
-            description:
-                "Микола допомагає покращити фізичну форму та гнучкість. Його заняття включають персональні та групові тренування.",
-            phone: "+380691234567",
-            telegram: "@mykola_fit",
-          ),
-        ],
-      ),
     );
   }
 }
 
 class TrainerCard extends StatelessWidget {
-  final String name;
-  final String type;
-  final String imagePath;
-  final int experienceYears;
-  final int clientsCount;
-  final double rating;
-  final String description;
-  final String phone;
-  final String telegram;
+  final Trainer trainer;
+  final Future<void> Function(BuildContext, Trainer) bookTrainer;
+  final void Function(BuildContext, Trainer) openDetails;
 
   const TrainerCard({
     super.key,
-    required this.name,
-    required this.type,
-    required this.imagePath,
-    required this.experienceYears,
-    required this.clientsCount,
-    required this.rating,
-    required this.description,
-    required this.phone,
-    required this.telegram,
+    required this.trainer,
+    required this.bookTrainer,
+    required this.openDetails,
   });
-
-  void _openDetails(BuildContext context) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => TrainerDetailsPage(
-          name: name,
-          type: type,
-          imagePath: imagePath,
-          experienceYears: experienceYears,
-          clientsCount: clientsCount,
-          rating: rating,
-          description: description,
-          phone: phone,
-          telegram: telegram,
-        ),
-      ),
-    );
-  }
-
-  static Future<void> bookTrainer(BuildContext context, String trainerName) async {
-    DateTime? selectedDate = await showDatePicker(
-      context: context,
-      initialDate: DateTime.now(),
-      firstDate: DateTime.now(),
-      lastDate: DateTime.now().add(const Duration(days: 365)),
-    );
-    if (selectedDate == null) return;
-
-    int? selectedHour = await showDialog<int>(
-      context: context,
-      builder: (context) {
-        final workoutProvider = context.read<WorkoutProvider>();
-        final now = DateTime.now();
-
-        return SimpleDialog(
-          title: const Text("Виберіть час"),
-          children: List.generate(5, (index) {
-            final hour = 10 + index * 2;
-            final isPastTime = selectedDate.year == now.year &&
-                selectedDate.month == now.month &&
-                selectedDate.day == now.day &&
-                hour <= now.hour;
-            final isTaken = workoutProvider.isSlotTaken(trainerName, selectedDate, hour) || isPastTime;
-
-            return SimpleDialogOption(
-              onPressed: isTaken ? null : () => Navigator.pop(context, hour),
-              child: Text(
-                "$hour:00${isTaken ? " (зайнято)" : ""}",
-                style: TextStyle(color: isTaken ? Colors.grey : Colors.white),
-              ),
-            );
-          }),
-        );
-      },
-    );
-
-    if (selectedHour == null) return;
-
-    final workoutDateTime = DateTime(
-      selectedDate.year,
-      selectedDate.month,
-      selectedDate.day,
-      selectedHour,
-    );
-
-    context.read<WorkoutProvider>().addWorkout(
-      Workout(trainer: trainerName, dateTime: workoutDateTime),
-    );
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          "Записано на ${selectedDate.day}.${selectedDate.month}.${selectedDate.year} о $selectedHour:00",
-        ),
-      ),
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () => _openDetails(context),
+      onTap: () => openDetails(context, trainer),
       child: Container(
         height: 170,
-        decoration: BoxDecoration(color: const Color(0xFF323232)),
+        decoration: const BoxDecoration(color: Color(0xFF323232)),
         child: Padding(
           padding: const EdgeInsets.all(12),
           child: Row(
@@ -210,7 +173,9 @@ class TrainerCard extends StatelessWidget {
                 height: 150,
                 decoration: BoxDecoration(
                   image: DecorationImage(
-                    image: AssetImage(imagePath),
+                    image: NetworkImage(
+                      "https://unprayerfully-cnidophorous-loralee.ngrok-free.dev${trainer.image}",
+                    ),
                     fit: BoxFit.cover,
                   ),
                 ),
@@ -224,38 +189,41 @@ class TrainerCard extends StatelessWidget {
                       children: [
                         Expanded(
                           child: Text(
-                            name,
+                            trainer.name,
                             style: const TextStyle(
                               color: Colors.white,
                               fontSize: 16,
                               fontWeight: FontWeight.w600,
                             ),
-                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
                         const Icon(Icons.star, color: Colors.yellow, size: 14),
-                        const SizedBox(width: 4),
                         Text(
-                          rating.toStringAsFixed(1),
-                          style: const TextStyle(color: Colors.white, fontSize: 14),
+                          trainer.rating.toStringAsFixed(1),
+                          style: const TextStyle(color: Colors.white),
                         ),
                       ],
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      "$experienceYears років досвіду",
-                      style: const TextStyle(color: Colors.white70, fontSize: 12),
+                      "${trainer.experienceYears} років досвіду",
+                      style: const TextStyle(
+                        color: Colors.white70,
+                        fontSize: 12,
+                      ),
                     ),
                     Text(
-                      "$clientsCount клієнтів",
-                      style: const TextStyle(color: Colors.white70, fontSize: 12),
+                      "${trainer.clientsCount} клієнтів",
+                      style: const TextStyle(
+                        color: Colors.white70,
+                        fontSize: 12,
+                      ),
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      type,
+                      trainer.type,
                       style: const TextStyle(
                         color: Colors.white,
-                        fontSize: 12,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -266,19 +234,38 @@ class TrainerCard extends StatelessWidget {
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFFED6E00),
                             foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 14,
+                              vertical: 8,
+                            ),
+                            minimumSize: Size.zero,
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                           ),
-                          onPressed: () => bookTrainer(context, name),
-                          child: const Text("Записатися", style: TextStyle(fontSize: 12)),
+                          onPressed: () => bookTrainer(context, trainer),
+                          child: const Text(
+                            "Записатися",
+                            style: TextStyle(fontSize: 14),
+                          ),
                         ),
-                        const SizedBox(width: 10),
+                        const SizedBox(width: 8),
                         OutlinedButton(
                           style: OutlinedButton.styleFrom(
                             side: const BorderSide(color: Color(0xFFFF7700)),
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 8,
+                            ),
+                            minimumSize: Size.zero,
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                           ),
-                          onPressed: () => _openDetails(context),
-                          child: const Text("Деталі", style: TextStyle(color: Color(0xFFFF7700), fontSize: 12)),
+                          onPressed: () => openDetails(context, trainer),
+                          child: const Text(
+                            "Деталі",
+                            style: TextStyle(
+                              color: Color(0xFFFF7700),
+                              fontSize: 14,
+                            ),
+                          ),
                         ),
                       ],
                     ),
@@ -294,86 +281,60 @@ class TrainerCard extends StatelessWidget {
 }
 
 class TrainerDetailsPage extends StatelessWidget {
-  final String name;
-  final String type;
-  final String imagePath;
-  final int experienceYears;
-  final int clientsCount;
-  final double rating;
-  final String description;
-  final String phone;
-  final String telegram;
+  final Trainer trainer;
+  final Future<List<int>> Function(int trainerId, DateTime date) getFreeHours;
 
   const TrainerDetailsPage({
     super.key,
-    required this.name,
-    required this.type,
-    required this.imagePath,
-    required this.experienceYears,
-    required this.clientsCount,
-    required this.rating,
-    required this.description,
-    required this.phone,
-    required this.telegram,
+    required this.trainer,
+    required this.getFreeHours,
   });
 
   Future<void> _bookTrainer(BuildContext context) async {
-    DateTime? selectedDate = await showDatePicker(
+    final date = await showDatePicker(
       context: context,
       initialDate: DateTime.now(),
       firstDate: DateTime.now(),
-      lastDate: DateTime.now().add(const Duration(days: 365)),
+      lastDate: DateTime(2100),
     );
+    if (date == null) return;
 
-    if (selectedDate == null) return;
+    final freeHours = await getFreeHours(trainer.id, date);
+    if (freeHours.isEmpty) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("Немає вільного часу 😢")));
+      return;
+    }
 
-    int? selectedHour = await showDialog<int>(
+    final selectedHour = await showDialog<int>(
       context: context,
       builder: (context) {
-        final workoutProvider = context.read<WorkoutProvider>();
-        final now = DateTime.now();
-
-        return SimpleDialog(
-          title: const Text("Виберіть час"),
-          children: List.generate(5, (index) {
-            final hour = 10 + index * 2;
-            final isPastTime = selectedDate.year == now.year &&
-                selectedDate.month == now.month &&
-                selectedDate.day == now.day &&
-                hour <= now.hour;
-            final isTaken = workoutProvider.isSlotTaken(name, selectedDate, hour) || isPastTime;
-
-            return SimpleDialogOption(
-              onPressed: isTaken ? null : () => Navigator.pop(context, hour),
-              child: Text(
-                "$hour:00${isTaken ? " (зайнято)" : ""}",
-                style: TextStyle(color: isTaken ? Colors.grey : Colors.white),
-              ),
-            );
-          }),
+        return AlertDialog(
+          title: const Text("Вибери годину"),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: freeHours.map((hour) {
+              return ListTile(
+                title: Text("$hour:00"),
+                onTap: () => Navigator.pop(context, hour),
+              );
+            }).toList(),
+          ),
         );
       },
     );
-
     if (selectedHour == null) return;
 
-    final workoutDateTime = DateTime(
-      selectedDate.year,
-      selectedDate.month,
-      selectedDate.day,
-      selectedHour,
-    );
+    final dateTime = DateTime(date.year, date.month, date.day, selectedHour);
+    final formatted = dateTime
+        .toIso8601String()
+        .substring(0, 19)
+        .replaceAll('T', ' ');
 
-    context.read<WorkoutProvider>().addWorkout(
-      Workout(trainer: name, dateTime: workoutDateTime),
-    );
-
+    final error = await ApiService.createWorkout(trainer.id, formatted);
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          "Записано на ${selectedDate.day}.${selectedDate.month}.${selectedDate.year} о $selectedHour:00",
-        ),
-      ),
+      SnackBar(content: Text(error == null ? "Запис успішний ✅" : error)),
     );
   }
 
@@ -382,41 +343,55 @@ class TrainerDetailsPage extends StatelessWidget {
     return Scaffold(
       backgroundColor: const Color(0xFF202020),
       appBar: AppBar(
-        title: Text(name),
+        title: Text(trainer.name),
         backgroundColor: const Color(0xFF323232),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Column(
           children: [
-            Image.asset(imagePath, width: 200, height: 200),
-            const SizedBox(height: 20),
-            Row(
-              children: [
-                const Icon(Icons.star, color: Colors.yellow),
-                const SizedBox(width: 4),
-                Text(rating.toStringAsFixed(1), style: const TextStyle(color: Colors.white)),
-              ],
+            Image.network(
+              "https://unprayerfully-cnidophorous-loralee.ngrok-free.dev${trainer.image}",
+              height: 200,
             ),
-            const SizedBox(height: 10),
-            Text(type, style: const TextStyle(color: Colors.white)),
-            const SizedBox(height: 10),
-            Text("$experienceYears років досвіду", style: const TextStyle(color: Colors.white70)),
-            Text("$clientsCount клієнтів", style: const TextStyle(color: Colors.white70)),
             const SizedBox(height: 20),
-            Text(description, style: const TextStyle(color: Colors.white70)),
+            Text(trainer.type, style: const TextStyle(color: Colors.white)),
+            const SizedBox(height: 10),
+            Text(
+              "${trainer.experienceYears} років досвіду",
+              style: const TextStyle(color: Colors.white70),
+            ),
+            Text(
+              "${trainer.clientsCount} клієнтів",
+              style: const TextStyle(color: Colors.white70),
+            ),
             const SizedBox(height: 20),
-            Text("Телефон: $phone", style: const TextStyle(color: Colors.white70, fontWeight: FontWeight.w500)),
-            Text("Telegram: $telegram", style: const TextStyle(color: Colors.white70, fontWeight: FontWeight.w500)),
+            Text(
+              trainer.description,
+              style: const TextStyle(color: Colors.white70),
+            ),
+            const SizedBox(height: 20),
+            Text(
+              "Телефон: ${trainer.phone}",
+              style: const TextStyle(color: Colors.white70),
+            ),
+            Text(
+              "Telegram: ${trainer.telegram}",
+              style: const TextStyle(color: Colors.white70),
+            ),
             const SizedBox(height: 20),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFFED6E00),
                 foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
               ),
               onPressed: () => _bookTrainer(context),
-              child: const Text("Записатися"),
+              child: const Text(
+                "Записатися",
+                style: TextStyle(
+                  color: Colors.white,
+                ),
+              ),
             ),
           ],
         ),

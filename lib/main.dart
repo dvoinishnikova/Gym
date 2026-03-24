@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
-import 'providers/workout_provider.dart';
+
 import 'pages/home_page.dart';
 import 'pages/home_tab.dart';
 import 'pages/trainers_page.dart';
@@ -10,15 +10,17 @@ import 'pages/registration_page.dart';
 import 'pages/login_page.dart';
 import 'pages/survey_page.dart';
 import 'pages/survey_complete_page.dart';
-
+import 'package:flutter_stripe/flutter_stripe.dart';
 void main() {
-  runApp(
-    ChangeNotifierProvider(
-      create: (context) => WorkoutProvider(),
-      child: const MyApp(),
-    ),
-  );
+
+ 
+
+  runApp(const MyApp());
+
 }
+
+
+
 
 final GoRouter router = GoRouter(
   initialLocation: '/registration',
