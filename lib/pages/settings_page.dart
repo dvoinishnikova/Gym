@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../services/api_service.dart';
-import 'package:flutter_stripe/flutter_stripe.dart';
+
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});

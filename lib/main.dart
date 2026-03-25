@@ -10,7 +10,6 @@ import 'pages/registration_page.dart';
 import 'pages/login_page.dart';
 import 'pages/survey_page.dart';
 import 'pages/survey_complete_page.dart';
-import 'package:flutter_stripe/flutter_stripe.dart';
 void main() {
 
  
