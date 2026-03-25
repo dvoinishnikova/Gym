@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../services/api_service.dart';
-
+import 'package:intl/intl.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -15,8 +15,12 @@ class _SettingsPageState extends State<SettingsPage> {
   bool _isLogoutLoading = false;
   bool _isUserLoading = true;
 
+  bool isSubscribed = false;
+  int daysLeft = 0;
+
   String? userName;
   String? userEmail;
+  String? subscriptionUntil;
 
   List<dynamic> workouts = [];
 
@@ -26,33 +30,39 @@ class _SettingsPageState extends State<SettingsPage> {
     _loadData();
   }
 
+  String _formatDate(String? date) {
+    if (date == null) return "";
+
+    final parsed = DateTime.parse(date);
+    return DateFormat('dd.MM.yyyy').format(parsed);
+  }
+
   Future<void> _loadData() async {
-    try {
-      final user = await ApiService.getMe();
-      final workoutsData = await ApiService.getWorkouts();
+    final user = await ApiService.getMe();
+    final workoutsData = await ApiService.getWorkouts();
 
-      if (user == null) {
-        context.go('/login');
-        return;
-      }
-
-      final now = DateTime.now();
-
-setState(() {
-  userName = user['name'];
-  userEmail = user['email'];
-
-  workouts = (workoutsData ?? []).where((w) {
-    final date = DateTime.parse(w["date_time"]);
-    return date.isBefore(now);
-  }).toList();
-
-  _isUserLoading = false;
-});
-    } catch (e) {
-      print("ERROR: $e");
-      setState(() => _isUserLoading = false);
+    if (user == null) {
+      context.go('/login');
+      return;
     }
+
+    final now = DateTime.now();
+
+    setState(() {
+      userName = user['name'];
+      userEmail = user['email'];
+
+      isSubscribed = user['is_subscribed'] ?? false;
+      daysLeft = user['subscription_days_left'] ?? 0;
+      subscriptionUntil = user['subscription_until'];
+
+      workouts = (workoutsData ?? []).where((w) {
+        final date = DateTime.parse(w["date_time"]);
+        return date.isBefore(now);
+      }).toList();
+
+      _isUserLoading = false;
+    });
   }
 
   Future<void> _logout() async {
@@ -68,18 +78,18 @@ setState(() {
   Future<void> _paySubscription() async {
     setState(() => _isPayLoading = true);
 
-    try {
-      final success = await ApiService.paySubscription(10000);
+    final data = await ApiService.paySubscription(10000);
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(success ? "Оплачено ✅" : "Помилка оплати ❌"),
-        ),
-      );
-    } catch (e) {
-      print("PAY ERROR: $e");
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text("Помилка: $e")));
+    if (data == null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("Помилка ❌")));
+    } else {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("Оплачено ✅")));
+
+      await _loadData();
     }
 
     setState(() => _isPayLoading = false);
@@ -170,6 +180,26 @@ setState(() {
             ),
 
             const SizedBox(height: 10),
+            isSubscribed
+                ? Text(
+                    "Активний ✅\nЗалишилось: $daysLeft днів",
+                    style: const TextStyle(color: Colors.green, fontSize: 14,),
+                    
+                  )
+                : const Text(
+                    "Не активний ❌",
+                    style: TextStyle(color: Colors.red, fontSize: 14,),
+                  ),
+
+            if (subscriptionUntil != null)
+              Text(
+                "Дійсний до: ${_formatDate(subscriptionUntil)} включно",
+                style: const TextStyle(color: Colors.white70, fontSize: 14,),
+              ),
+
+            
+
+            const SizedBox(height: 10),
 
             ElevatedButton(
               style: ElevatedButton.styleFrom(
@@ -179,7 +209,7 @@ setState(() {
               onPressed: _isPayLoading ? null : _paySubscription,
               child: _isPayLoading
                   ? const CircularProgressIndicator(color: Colors.white)
-                  : const Text("Оплатити абонемент"),
+                  : const Text("Оплатити абонемент на місяць"),
             ),
 
             const SizedBox(height: 30),

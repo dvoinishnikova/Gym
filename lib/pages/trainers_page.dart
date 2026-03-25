@@ -52,6 +52,15 @@ class _TrainersPageState extends State<TrainersPage> {
   }
 
   Future<void> _bookTrainer(BuildContext context, Trainer trainer) async {
+    final user = await ApiService.getMe();
+
+    if (user == null || user['is_subscribed'] != true) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("Потрібен абонемент ❌")));
+      return;
+    }
+
     final date = await showDatePicker(
       context: context,
       initialDate: DateTime.now(),
@@ -94,9 +103,17 @@ class _TrainersPageState extends State<TrainersPage> {
         .replaceAll('T', ' ');
 
     final error = await ApiService.createWorkout(trainer.id, formatted);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(error == null ? "Запис успішний ✅" : error)),
-    );
+
+    if (error != null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error)));
+      return;
+    }
+
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text("Запис створено ✅")));
   }
 
   void _openDetails(BuildContext context, Trainer trainer) {
@@ -174,7 +191,7 @@ class TrainerCard extends StatelessWidget {
                 decoration: BoxDecoration(
                   image: DecorationImage(
                     image: NetworkImage(
-                      "https://unprayerfully-cnidophorous-loralee.ngrok-free.dev${trainer.image}",
+                      "https://nonsignificative-nonappealingly-alexis.ngrok-free.dev${trainer.image}",
                     ),
                     fit: BoxFit.cover,
                   ),
@@ -291,6 +308,14 @@ class TrainerDetailsPage extends StatelessWidget {
   });
 
   Future<void> _bookTrainer(BuildContext context) async {
+    final user = await ApiService.getMe();
+
+    if (user == null || user['is_subscribed'] != true) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("Потрібен абонемент ❌")));
+      return;
+    }
     final date = await showDatePicker(
       context: context,
       initialDate: DateTime.now(),
@@ -351,7 +376,7 @@ class TrainerDetailsPage extends StatelessWidget {
         child: Column(
           children: [
             Image.network(
-              "https://unprayerfully-cnidophorous-loralee.ngrok-free.dev${trainer.image}",
+              "https://nonsignificative-nonappealingly-alexis.ngrok-free.dev${trainer.image}",
               height: 200,
             ),
             const SizedBox(height: 20),
@@ -388,9 +413,7 @@ class TrainerDetailsPage extends StatelessWidget {
               onPressed: () => _bookTrainer(context),
               child: const Text(
                 "Записатися",
-                style: TextStyle(
-                  color: Colors.white,
-                ),
+                style: TextStyle(color: Colors.white),
               ),
             ),
           ],

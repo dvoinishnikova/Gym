@@ -105,13 +105,16 @@ setState(() {
 
     Color progressColor;
 
-    if (fillRatio < 0.33) {
-      progressColor = Colors.green;
-    } else if (fillRatio < 0.66) {
-      progressColor = Colors.yellow;
-    } else {
-      progressColor = Colors.red;
-    }
+if (peopleCount == 0) {
+  progressColor = Colors.grey;
+} else if (peopleCount < 20) {
+  progressColor = Colors.green;
+} else if (peopleCount < 40) {
+  progressColor = Colors.yellow;
+} else {
+  progressColor = Colors.red;
+}
+
 
     return Scaffold(
       backgroundColor: const Color(0xFF202020),

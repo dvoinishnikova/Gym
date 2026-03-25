@@ -2,23 +2,21 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 class ApiService {
-  static const String baseUrl = "https://unprayerfully-cnidophorous-loralee.ngrok-free.dev/api";
+  static const String baseUrl =
+      "https://nonsignificative-nonappealingly-alexis.ngrok-free.dev/api";
 
   static String? token;
 
   static Map<String, String> get headers => {
-        "Content-Type": "application/json",
-        if (token != null) "Authorization": "Bearer $token",
-      };
+    "Content-Type": "application/json",
+    if (token != null) "Authorization": "Bearer $token",
+  };
 
   static Future<String?> login(String email, String password) async {
     final res = await http.post(
       Uri.parse("$baseUrl/login"),
       headers: headers,
-      body: jsonEncode({
-        "email": email,
-        "password": password,
-      }),
+      body: jsonEncode({"email": email, "password": password}),
     );
 
     final data = jsonDecode(res.body);
@@ -32,15 +30,14 @@ class ApiService {
   }
 
   static Future<String?> register(
-      String name, String email, String password) async {
+    String name,
+    String email,
+    String password,
+  ) async {
     final res = await http.post(
       Uri.parse("$baseUrl/register"),
       headers: headers,
-      body: jsonEncode({
-        "name": name,
-        "email": email,
-        "password": password,
-      }),
+      body: jsonEncode({"name": name, "email": email, "password": password}),
     );
 
     final data = jsonDecode(res.body);
@@ -69,44 +66,40 @@ class ApiService {
     return jsonDecode(res.body);
   }
 
-  static Future<String?> createWorkout(
-    int trainerId, String dateTime) async {
-  try {
-    final res = await http.post(
-      Uri.parse("$baseUrl/workouts"),
-      headers: headers,
-      body: jsonEncode({
-        "trainer_id": trainerId,
-        "date_time": dateTime,
-      }),
-    );
+  static Future<String?> createWorkout(int trainerId, String dateTime) async {
+    try {
+      final res = await http.post(
+        Uri.parse("$baseUrl/workouts"),
+        headers: headers,
+        body: jsonEncode({"trainer_id": trainerId, "date_time": dateTime}),
+      );
 
-    if (res.statusCode == 200 || res.statusCode == 201) {
-      return null;
+      if (res.statusCode == 200 || res.statusCode == 201) {
+        return null;
+      }
+
+      if (res.statusCode == 403) {
+        final data = jsonDecode(res.body);
+        return data["message"];
+      }
+
+      if (res.body.isNotEmpty) {
+        final data = jsonDecode(res.body);
+        return data["message"] ?? "Помилка створення";
+      }
+
+      return "Помилка сервера (${res.statusCode})";
+    } catch (e) {
+      return "Помилка з'єднання";
     }
-
-    if (res.body.isNotEmpty) {
-      final data = jsonDecode(res.body);
-      return data["message"] ?? "Помилка створення";
-    }
-
-    return "Помилка сервера (${res.statusCode})";
-  } catch (e) {
-    return "Помилка з'єднання";
   }
-}
 
   static Future<void> deleteWorkout(int id) async {
-    await http.delete(
-      Uri.parse("$baseUrl/workouts/$id"),
-      headers: headers,
-    );
+    await http.delete(Uri.parse("$baseUrl/workouts/$id"), headers: headers);
   }
+
   static Future<Map<String, dynamic>?> getMe() async {
-    final res = await http.get(
-      Uri.parse("$baseUrl/me"),
-      headers: headers,
-    );
+    final res = await http.get(Uri.parse("$baseUrl/me"), headers: headers);
 
     if (res.statusCode == 200) {
       return jsonDecode(res.body);
@@ -114,10 +107,9 @@ class ApiService {
       return null;
     }
   }
+
   static Future<Map<String, dynamic>?> getGymLoad() async {
-    final res = await http.get(
-      Uri.parse("$baseUrl/gym-load"),
-    );
+    final res = await http.get(Uri.parse("$baseUrl/gym-load"));
 
     if (res.statusCode == 200) {
       return jsonDecode(res.body);
@@ -125,14 +117,13 @@ class ApiService {
       return null;
     }
   }
+
   static Future<void> logout() async {
-    await http.post(
-      Uri.parse("$baseUrl/logout"),
-      headers: headers,
-    );
+    await http.post(Uri.parse("$baseUrl/logout"), headers: headers);
 
     token = null;
   }
+
   static Future<bool> paySubscription(int amount) async {
     final res = await http.post(
       Uri.parse('$baseUrl/pay'),
@@ -145,15 +136,16 @@ class ApiService {
 
     return res.statusCode == 200;
   }
+
   static Future<List<String>> getTrainerSchedule(int trainerId) async {
-  final res = await http.get(
-    Uri.parse("$baseUrl/trainers/$trainerId/schedule"),
-  );
+    final res = await http.get(
+      Uri.parse("$baseUrl/trainers/$trainerId/schedule"),
+    );
 
-  if (res.statusCode == 200) {
-    return List<String>.from(jsonDecode(res.body));
+    if (res.statusCode == 200) {
+      return List<String>.from(jsonDecode(res.body));
+    }
+
+    return [];
   }
-
-  return [];
-}
 }
